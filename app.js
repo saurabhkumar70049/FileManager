@@ -6,6 +6,7 @@ import 'dotenv/config.js';
 
 import "./models/user.model.js";
 import './models/tokenBlock.model.js';
+import './models/file.model.js';
 
 
 import userRoute from './routes/user.route.js';

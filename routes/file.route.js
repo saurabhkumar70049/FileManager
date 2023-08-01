@@ -3,7 +3,7 @@ import multer from 'multer';
 
 const fileRoute = express.Router();
 
-import {createFolder, fileUpload, fileDelete} from '../controllers/file.controller.js';
+import {createFolder, fileUpload, fileDelete, createSubFolder} from '../controllers/file.controller.js';
 
 const storage = multer.memoryStorage();
 
@@ -26,6 +26,8 @@ const upload = multer({
 })
 
 fileRoute.post('/createFolder', createFolder);
+
+fileRoute.post('/createSubFolder', createSubFolder);
 
 fileRoute.post('/uploadFile', upload.single('image'), fileUpload);
 
