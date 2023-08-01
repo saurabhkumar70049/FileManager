@@ -3,8 +3,10 @@ import mongoose from "mongoose";
 const File = mongoose.model("File");
 
 const findPath = async (folderName)=> {
-    const pathExist = await File.findOne({path:folderName});
+    
+    const pathExist = await File.findOne({'detail.Key':folderName});
     if(pathExist){
+        
         return ({
             success:true,
             message:"folder already exist",
@@ -38,4 +40,21 @@ const folderCreate = async(newFolder)=>{
     }
 }
 
-export {findPath, folderCreate};
+const allFilesService = async()=>{
+    const allDetail = await File.find({}).populate('uid', 'email');
+    if(allDetail){
+        return({
+            success:true,
+            message:"All File details",
+            data:allDetail
+        })
+    }
+    else {
+        return ({
+            success:false,
+            error:"Details doesn't fetch"
+        })
+    }
+}
+
+export {findPath, folderCreate, allFilesService};

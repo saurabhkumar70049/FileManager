@@ -3,7 +3,11 @@ import multer from 'multer';
 
 const fileRoute = express.Router();
 
-import {createFolder, fileUpload, fileDelete, createSubFolder} from '../controllers/file.controller.js';
+import tokenValidation from '../middlewares/tokenValidation.js';
+import authorization from '../middlewares/authorization.js';
+
+
+import {createFolder, fileUpload, fileDelete, createSubFolder, allFiles} from '../controllers/file.controller.js';
 
 const storage = multer.memoryStorage();
 
@@ -25,12 +29,14 @@ const upload = multer({
             }
 })
 
-fileRoute.post('/createFolder', createFolder);
+fileRoute.post('/createFolder',[tokenValidation, authorization(['regular', 'admin'])] ,createFolder);
 
-fileRoute.post('/createSubFolder', createSubFolder);
+fileRoute.post('/createSubFolder',[tokenValidation, authorization(['regular', 'admin'])], createSubFolder);
 
-fileRoute.post('/uploadFile', upload.single('image'), fileUpload);
+fileRoute.post('/uploadFile',[tokenValidation, authorization(['regular', 'admin'])], upload.single('image'), fileUpload);
 
-fileRoute.delete("/deleteFile", fileDelete);
+fileRoute.delete("/deleteFile",[tokenValidation, authorization(['regular', 'admin'])], fileDelete);
+
+fileRoute.get('/fetchAll', [tokenValidation, authorization(['admin'])] ,allFiles)
 
 export default fileRoute;

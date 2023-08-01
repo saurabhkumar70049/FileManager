@@ -2,14 +2,14 @@ import httpStatus from "http-status";
 import AWS from 'aws-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
-import {findPath, folderCreate} from "../services/file.service.js";
+import {findPath, folderCreate, allFilesService} from "../services/file.service.js";
 
 AWS.config.region = 'ap-south-1';
 var s3Client = new AWS.S3();
 
 const uploadToS3 = (fileData, destination)=>{
     if(destination){
-        destination = `${destination}/${fileData.originalname}`;
+        destination = `${destination}/${uuidv4()}-${fileData.originalname}`;
     }
     else {
         destination = fileData.originalname;
@@ -30,6 +30,7 @@ const uploadToS3 = (fileData, destination)=>{
         })
     })
 }
+
 
 const createFolder = async(req, res)=>{
     var {folderName} = req.body;
@@ -56,29 +57,37 @@ const createFolder = async(req, res)=>{
 
     const data = await s3Client.upload(params).promise();
 
-        if (data){
-            const newFolder = {
-                data:data,
-                path:folderName
-            }
-            const serviceData = await folderCreate(newFolder);
-            if(serviceData.success){
-                return (
-                res.status(httpStatus.OK).json({
-                    message:"folder created sucessfully",
-                    data:serviceData.data
-                })
-            )}
-            
+    if (data){
+        const newFolder = {
+            uid:req._id,
+            detail:data,
+            Type:"Folder"
         }
-        else {
-            console.log("Error creating the folder: ");
+        const serviceData = await folderCreate(newFolder);
+        if(serviceData.success){
+            return (
+            res.status(httpStatus.OK).json({
+                message:"folder created sucessfully",
+                data:serviceData.data
+            })
+        )}
+        else{
             return (
                 res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-                    error:"got errer when creating folder"
+                    error:serviceData.error
                 })
             )
-        } 
+        }
+        
+    }
+    else {
+        console.log("Error creating the folder: ");
+        return (
+            res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+                error:"got errer when creating folder"
+            })
+        )
+    } 
 }
 
 
@@ -91,9 +100,19 @@ const createSubFolder = async(req, res)=>{
             })
         )
     }
+
+    const userDetail = await findPath(`${destination}/`);
+    if(userDetail.data.uid != req._id){
+        return (
+            res.status(httpStatus.BAD_REQUEST).json({
+                error:"You are not allow to access it "
+            })
+        )
+    }
+
     destination = destination+'/'+folderName;
     
-    const serviceData = await findPath(destination);
+    const serviceData = await findPath(`${destination}/`);
     if(serviceData.success){
         return (
             res.status(httpStatus.BAD_REQUEST).json({
@@ -107,60 +126,92 @@ const createSubFolder = async(req, res)=>{
     };
 
     const data = await s3Client.upload(params).promise();
-
-        if (data){
-            const newFolder = {
-                data:data,
-                path:destination
-            }
-            const serviceData = await folderCreate(newFolder);
-            if(serviceData.success){
-                return (
-                res.status(httpStatus.OK).json({
-                    message:"folder created sucessfully",
-                    data:serviceData.data
-                })
-            )}
-            
+    if (data){
+        const newFolder = {
+            uid:req._id,
+            detail:data,
+            Type:"Folder",
         }
-        else {
+        const serviceData = await folderCreate(newFolder);
+        if(serviceData.success){
+            return (
+            res.status(httpStatus.OK).json({
+                message:"folder created sucessfully",
+                data:serviceData.data
+            })
+        )}
+        else{
             return (
                 res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-                    error:"got errer when creating folder"
+                    error:serviceData.error
                 })
             )
         }
+        
+    }
+    else {
+        return (
+            res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+                error:"got errer when creating folder"
+            })
+        )
+    }
 }
 
 
 const fileUpload = async (req, res)=>{
     const {destination} = req.body;
-    console.log(destination)
-    if(req.file){
-        const s3Confirmation = await uploadToS3(req.file, destination);
-        if(s3Confirmation){
+    if(destination){
+        const userDetail = await findPath(`${destination}/`);
+        console.log(userDetail);
+        if(userDetail.data.uid != req._id){
             return (
-                res.status(httpStatus.OK).json({
-                    message:"file uploaded successfully",
-                    data:s3Confirmation
+                res.status(httpStatus.BAD_REQUEST).json({
+                    error:"you can't use this folder"
                 })
             )
         }
+    }
+    if(req.file){
+        const s3Confirmation = await uploadToS3(req.file, destination);
+        if(s3Confirmation){
+            const newFolder = {
+                uid:req._id,
+                detail:{...s3Confirmation, date: Date.now, size: req.file.size, fileName: req.file.originalname},
+                Type:"File",
+            }
+            const serviceData = await folderCreate(newFolder);
+            if(serviceData.success){
+                return (
+                res.status(httpStatus.OK).json({
+                    message:"file created sucessfully",
+                    data:serviceData.data
+                })
+            )}
+            else{
+                return (
+                    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+                        error:serviceData.error
+                    })
+                )
+            }
+        }
         else {
             return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-                error: "error got"
+                error: "AWS S3 error"
             })
         }
     }
     else {
         return (
             res.status(httpStatus.OK).json({
-                error:"got error",
+                error:"Multer error",
             })
         )
     }
     
 }
+
 
 const fileDelete = async (req, res)=>{
     const {filename} = req.body;
@@ -184,4 +235,25 @@ const fileDelete = async (req, res)=>{
     }
 }
 
-export {createFolder, fileUpload, fileDelete, createSubFolder};
+
+const allFiles = async(req, res)=>{
+    const serviceData = await allFilesService();
+    if(serviceData.success){
+        return (
+            res.status(httpStatus.OK).json({
+                message:serviceData.message,
+                data:serviceData.data
+            })
+        )
+    }
+    else {
+        return (
+            res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+                error:serviceData.error,
+            })
+        )
+    }
+}
+
+
+export {createFolder, fileUpload, fileDelete, createSubFolder, allFiles};
