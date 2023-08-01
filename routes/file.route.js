@@ -1,14 +1,34 @@
 import express from 'express';
+import multer from 'multer';
 
 const fileRoute = express.Router();
 
-import uploadFile from '../middlewares/uploadfile.js';
-import pathFinder from '../middlewares/pathFinder.js';
+import {createFolder, fileUpload, fileDelete} from '../controllers/file.controller.js';
 
-import {createFolder, fileUpload} from '../controllers/file.controller.js';
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb)=>{
+    if(file.mimetype.split('/')[0] === 'image'){
+        cb(null, true);
+    }
+    else{
+        cb(new Error("this don't support"));
+    }
+}
+
+const upload = multer({
+    storage,
+    fileFilter,
+    limits: {
+                fileSize: 1024*1024*10,
+                files: 4
+            }
+})
 
 fileRoute.post('/createFolder', createFolder);
 
-fileRoute.post('/uploadFile', uploadFile().single('image'), fileUpload);
+fileRoute.post('/uploadFile', upload.single('image'), fileUpload);
+
+fileRoute.delete("/deleteFile", fileDelete);
 
 export default fileRoute;
