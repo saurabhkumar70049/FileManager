@@ -11,20 +11,11 @@ import {createFolder, fileUpload, fileDelete, createSubFolder, allFiles} from '.
 
 const storage = multer.memoryStorage();
 
-const fileFilter = (req, file, cb)=>{
-    if(file.mimetype.split('/')[0] === 'image'){
-        cb(null, true);
-    }
-    else{
-        cb(new Error("this don't support"));
-    }
-}
 
 const upload = multer({
     storage,
-    fileFilter,
     limits: {
-                fileSize: 1024*1024*10,
+                fileSize: 1024*1024*100,
                 files: 4
             }
 })
@@ -33,7 +24,7 @@ fileRoute.post('/createFolder',[tokenValidation, authorization(['regular', 'admi
 
 fileRoute.post('/createSubFolder',[tokenValidation, authorization(['regular', 'admin'])], createSubFolder);
 
-fileRoute.post('/uploadFile',[tokenValidation, authorization(['regular', 'admin'])], upload.single('image'), fileUpload);
+fileRoute.post('/uploadFile',[tokenValidation, authorization(['regular', 'admin']), upload.single('file')], fileUpload);
 
 fileRoute.delete("/deleteFile",[tokenValidation, authorization(['regular', 'admin'])], fileDelete);
 

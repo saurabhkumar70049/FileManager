@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 const fileSchema = mongoose.Schema({
     uid:{
         type: mongoose.Schema.Types.ObjectId,
+        ref:"User",
         require:true,
     },
     path:{
